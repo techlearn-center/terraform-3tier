@@ -1,0 +1,49 @@
+# LocalStack for 3-Tier Architecture Testing
+# ===========================================
+# Simulates AWS services locally for development/testing
+
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: terraform-3tier-localstack
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
+    environment:
+      # AWS Services to enable
+      - SERVICES=ec2,elbv2,rds,iam,sts,cloudwatch,logs,s3,secretsmanager
+
+      # Debug mode (set to 1 for verbose logging)
+      - DEBUG=0
+
+      # Data persistence
+      - PERSISTENCE=1
+      - DATA_DIR=/var/lib/localstack/data
+
+      # Docker settings (for ECS simulation)
+      - DOCKER_HOST=unix:///var/run/docker.sock
+
+      # Region
+      - DEFAULT_REGION=us-east-1
+
+    volumes:
+      # Persist data between restarts
+      - "./localstack-data:/var/lib/localstack"
+      # Docker socket for ECS (optional)
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - terraform-3tier
+
+networks:
+  terraform-3tier:
+    driver: bridge

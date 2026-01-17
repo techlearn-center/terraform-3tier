@@ -1,0 +1,36 @@
+# LocalStack Provider Override
+# ============================
+# Copy this file to provider_override.tf to use LocalStack instead of real AWS
+#
+# Usage:
+#   cp provider_override.tf.example provider_override.tf
+#   terraform init
+#   terraform apply
+
+provider "aws" {
+  region                      = "us-east-1"
+  access_key                  = "test"
+  secret_key                  = "test"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    ec2            = "http://localhost:4566"
+    elbv2          = "http://localhost:4566"
+    rds            = "http://localhost:4566"
+    iam            = "http://localhost:4566"
+    sts            = "http://localhost:4566"
+    cloudwatch     = "http://localhost:4566"
+    cloudwatchlogs = "http://localhost:4566"
+    s3             = "http://localhost:4566"
+    secretsmanager = "http://localhost:4566"
+  }
+
+  default_tags {
+    tags = {
+      Environment = "localstack"
+      ManagedBy   = "terraform"
+    }
+  }
+}

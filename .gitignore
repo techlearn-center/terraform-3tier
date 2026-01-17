@@ -1,0 +1,32 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+
+# Provider override (local only)
+provider_override.tf
+
+# LocalStack data
+localstack-data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*_score.txt
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.env
