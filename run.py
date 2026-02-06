@@ -56,11 +56,42 @@ def check_file_exists(filename):
     return os.path.isfile(filename)
 
 
+def strip_comments(content):
+    """Remove commented lines from Terraform content.
+
+    This strips:
+    - Lines starting with # (after optional whitespace)
+    - Lines starting with // (after optional whitespace)
+    - Block comments /* ... */ (including multi-line)
+    """
+    if content is None:
+        return None
+
+    # Remove block comments /* ... */
+    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+
+    # Remove single-line comments (lines starting with # or //)
+    lines = content.split('\n')
+    uncommented_lines = []
+    for line in lines:
+        stripped = line.lstrip()
+        if not stripped.startswith('#') and not stripped.startswith('//'):
+            uncommented_lines.append(line)
+
+    return '\n'.join(uncommented_lines)
+
+
 def check_pattern(content, pattern, flags=0):
-    """Check if a pattern exists in content."""
+    """Check if a pattern exists in UNCOMMENTED content only.
+
+    This ensures that commented-out code (starter templates) doesn't
+    give students points until they actually uncomment and complete it.
+    """
     if content is None:
         return False
-    return bool(re.search(pattern, content, flags))
+    # Strip comments before checking pattern
+    uncommented = strip_comments(content)
+    return bool(re.search(pattern, uncommented, flags))
 
 
 def check_provider_config():
