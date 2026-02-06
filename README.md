@@ -2332,6 +2332,100 @@ If you can answer all 5 confidently, you have a solid understanding of 3-tier ar
 
 ---
 
+## (Bonus) Customize the Web Page
+
+> **When to do this:** Only after deploying to **real AWS** and successfully accessing your ALB URL in a browser. This does NOT work on LocalStack.
+>
+> **What you'll see first:** The default nginx or Apache welcome page. This means your infrastructure is working correctly!
+>
+> **What this bonus does:** Replace the default page with a custom page showing instance metadata, proving the ALB is load balancing.
+
+If your ALB URL (`terraform-3tier-alb-xxx.us-east-1.elb.amazonaws.com`) shows the default web server page, your infrastructure is working. This optional step customizes that page.
+
+### SSH into a Web Instance
+
+First, connect to one of your web EC2 instances. Since they're in private subnets, you'll need either:
+- **AWS Systems Manager Session Manager** (recommended, no bastion needed)
+- A bastion host in a public subnet
+
+```bash
+# Using Session Manager (if you added the IAM role):
+aws ssm start-session --target i-xxxxxxxxx
+
+# Or via bastion:
+ssh -J ec2-user@bastion-ip ec2-user@web-instance-private-ip
+```
+
+### Create Custom Page (Apache httpd)
+
+```bash
+# Get instance metadata
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+# Create custom page
+cat <<EOF | sudo tee /var/www/html/index.html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Tier - 3-Tier Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px; }
+    h1 { color: #232f3e; }
+    .tier { background: #ff9900; color: white; padding: 5px 15px; border-radius: 5px; display: inline-block; }
+    .info { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px; }
+    .info p { margin: 5px 0; }
+    pre { background: #232f3e; color: #f5f5f5; padding: 15px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="tier">Web Tier</span>
+    <h1>3-Tier Architecture Demo</h1>
+    <p>This page is served from the <strong>Web Tier</strong> behind the ALB.</p>
+    <div class="info">
+      <p><strong>Instance ID:</strong> ${INSTANCE_ID}</p>
+      <p><strong>Availability Zone:</strong> ${AZ}</p>
+      <p><strong>Private IP:</strong> ${LOCAL_IP}</p>
+    </div>
+    <h3>Architecture</h3>
+    <pre>Internet → ALB → [Web Tier] → App Tier → Database
+                      ↑
+                  You are here</pre>
+  </div>
+</body>
+</html>
+EOF
+```
+
+### Create Custom Page (nginx)
+
+If you're using nginx instead of Apache:
+
+```bash
+# Same commands, different path:
+cat <<EOF | sudo tee /usr/share/nginx/html/index.html
+# ... same HTML content as above ...
+EOF
+```
+
+### Test Load Balancing
+
+After customizing the page on **both** web instances (with different instance IDs):
+
+1. Open your ALB URL in a browser
+2. Refresh the page multiple times
+3. Watch the Instance ID and AZ change — this proves the ALB is distributing traffic
+
+> **Tip:** If you see the same instance every time, the ALB might be using sticky sessions, or you're hitting the browser cache. Try `curl` instead:
+> ```bash
+> for i in {1..10}; do curl -s http://your-alb-url | grep "Instance ID"; done
+> ```
+
+---
+
 ## Glossary
 
 | Term | Definition |
