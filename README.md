@@ -2402,22 +2402,32 @@ ssh -J ec2-user@<bastion-public-ip> ec2-user@<web-instance-private-ip>
 
 ### Step 3: Create the Custom Page
 
-Once you're connected to the EC2 instance (you'll see a prompt like `[ec2-user@ip-10-0-10-4 ~]$`), run these commands:
+Once you're connected to the EC2 instance, you'll see a prompt like this:
+
+```
+[ec2-user@ip-10-0-10-4 ~]$
+```
+
+This confirms you're **inside the EC2 instance**, not on your local machine. Now run the following commands:
 
 **For Apache (httpd) — this is what the starter code uses:**
 
+**Step 3a:** Get this instance's metadata from AWS (run inside EC2):
 ```bash
-# Step 3a: Get this instance's metadata from AWS
-INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+[ec2-user@ip-10-0-10-4 ~]$ INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+[ec2-user@ip-10-0-10-4 ~]$ AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+[ec2-user@ip-10-0-10-4 ~]$ LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+```
 
-# Step 3b: Verify the variables are set (you should see values printed)
-echo "Instance: $INSTANCE_ID, AZ: $AZ, IP: $LOCAL_IP"
+**Step 3b:** Verify the variables are set (you should see values printed):
+```bash
+[ec2-user@ip-10-0-10-4 ~]$ echo "Instance: $INSTANCE_ID, AZ: $AZ, IP: $LOCAL_IP"
+Instance: i-0abc123def456, AZ: us-east-1a, IP: 10.0.10.4
+```
 
-# Step 3c: Create the custom HTML page
-# This command writes the HTML to the Apache web root
-sudo tee /var/www/html/index.html > /dev/null <<EOF
+**Step 3c:** Create the custom HTML page (paste this entire block):
+```bash
+[ec2-user@ip-10-0-10-4 ~]$ sudo tee /var/www/html/index.html > /dev/null <<EOF
 <!DOCTYPE html>
 <html>
 <head>
@@ -2459,17 +2469,24 @@ sudo tee /var/www/html/index.html > /dev/null <<EOF
 </body>
 </html>
 EOF
+```
 
-# Step 3d: Verify the file was created
-cat /var/www/html/index.html | head -5
+**Step 3d:** Verify the file was created:
+```bash
+[ec2-user@ip-10-0-10-4 ~]$ cat /var/www/html/index.html | head -5
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Tier - 3-Tier Demo</title>
+  <style>
 ```
 
 **For nginx (if you used nginx instead of Apache):**
 
+Use the same steps above, but change the file path from `/var/www/html/index.html` to `/usr/share/nginx/html/index.html`:
 ```bash
-# Same steps, but write to nginx's web root instead:
-sudo tee /usr/share/nginx/html/index.html > /dev/null <<EOF
-# ... paste the same HTML content from above ...
+[ec2-user@ip-10-0-10-4 ~]$ sudo tee /usr/share/nginx/html/index.html > /dev/null <<EOF
+# ... paste the same HTML content from Step 3c ...
 EOF
 ```
 
@@ -2477,45 +2494,121 @@ EOF
 
 ### Step 4: Repeat for the Second Web Instance
 
-**Important:** Disconnect from the first instance and connect to the second one, then run the same commands (Step 3).
+> **Why do this?** You have 2 web servers behind the ALB. If you only customize one, half your requests will show the custom page and half will show the default nginx/Apache page. Customize both so every request shows your custom page.
 
-Each instance will have **different values** for `$INSTANCE_ID`, `$AZ`, and `$LOCAL_IP` — that's the point! When you refresh your ALB URL, you'll see different instance details.
-
+**4a. Exit the first EC2 instance:**
 ```bash
-# Exit the current instance
-exit
+[ec2-user@ip-10-0-10-4 ~]$ exit
+logout
+```
 
-# Connect to the second web instance
-aws ssm start-session --target i-0def456ghi789
-# Then run Step 3 commands again
+You're now back on your **local machine** (your laptop/desktop terminal).
+
+**4b. Get your second web instance ID** (run on local machine):
+```bash
+# Run on your LOCAL machine
+$ aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=*web*" "Name=instance-state-name,Values=running" \
+    --query "Reservations[*].Instances[*].[InstanceId,PrivateIpAddress]" \
+    --output table
+
+-----------------------------------------
+|          DescribeInstances            |
++----------------------+----------------+
+|  i-0abc123def456     |  10.0.10.4     |  <-- You already did this one
+|  i-0def456ghi789     |  10.0.11.7     |  <-- Do this one next
++----------------------+----------------+
+```
+
+**4c. Connect to the second web instance:**
+```bash
+# Run on your LOCAL machine
+$ aws ssm start-session --target i-0def456ghi789
+
+Starting session with SessionId: ...
+[ec2-user@ip-10-0-11-7 ~]$
+```
+
+**4d. Run Step 3a through 3d again** on this second instance:
+```bash
+# You're now inside the SECOND EC2 instance
+[ec2-user@ip-10-0-11-7 ~]$ INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+[ec2-user@ip-10-0-11-7 ~]$ AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+[ec2-user@ip-10-0-11-7 ~]$ LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+[ec2-user@ip-10-0-11-7 ~]$ echo "Instance: $INSTANCE_ID, AZ: $AZ, IP: $LOCAL_IP"
+Instance: i-0def456ghi789, AZ: us-east-1b, IP: 10.0.11.7
+```
+
+Then run the `sudo tee /var/www/html/index.html` command from Step 3c (the full HTML block).
+
+**4e. Exit when done:**
+```bash
+[ec2-user@ip-10-0-11-7 ~]$ exit
+logout
 ```
 
 ---
 
 ### Step 5: Test Load Balancing
 
-Now open your ALB URL in a browser and refresh multiple times:
+> **Where to run this:** On your **local machine** (your laptop/desktop). You should have exited from both EC2 instances.
 
+**5a. Open your ALB URL in a browser:**
+
+Copy your ALB DNS name and paste it in your browser:
 ```
 http://terraform-3tier-alb-xxxxxxxxx.us-east-1.elb.amazonaws.com
 ```
 
-**What you should see:**
-- The Instance ID and AZ should change between refreshes
+**5b. What you should see:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  [Web Tier]                                                 │
+│                                                             │
+│  3-Tier Architecture Demo                                   │
+│  ─────────────────────────────────────────                  │
+│  This page is served from an EC2 instance behind the        │
+│  Application Load Balancer.                                 │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ Instance ID:      i-0abc123def456                   │    │
+│  │ Availability Zone: us-east-1a                       │    │
+│  │ Private IP:        10.0.10.4                        │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│  Refresh this page multiple times. If the Instance ID       │
+│  changes, the ALB is load balancing!                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**5c. Refresh the page multiple times:**
+- The **Instance ID** and **Availability Zone** should change between refreshes
+- Example: First refresh shows `i-0abc123...` (us-east-1a), next shows `i-0def456...` (us-east-1b)
 - This proves the ALB is distributing requests across both web servers
 
-**If you always see the same instance:**
+**5d. If you always see the same instance:**
 
-Your browser might be caching. Test with curl instead:
+Your browser might be caching. Test with curl on your **local machine**:
 
 ```bash
-# Run this 10 times and watch the Instance ID change
-for i in {1..10}; do
-  echo "Request $i:"
-  curl -s http://your-alb-url | grep "Instance ID"
-  sleep 1
-done
+# Run on your LOCAL machine (not EC2)
+$ for i in {1..10}; do
+    echo "--- Request $i ---"
+    curl -s http://terraform-3tier-alb-xxxxxxx.us-east-1.elb.amazonaws.com | grep "Instance ID"
+    sleep 1
+  done
+
+--- Request 1 ---
+      <p><strong>Instance ID:</strong> i-0abc123def456</p>
+--- Request 2 ---
+      <p><strong>Instance ID:</strong> i-0def456ghi789</p>
+--- Request 3 ---
+      <p><strong>Instance ID:</strong> i-0abc123def456</p>
+...
 ```
+
+If you see the Instance ID alternating between your two instances, **congratulations!** Your 3-tier architecture with load balancing is working correctly.
 
 ---
 
