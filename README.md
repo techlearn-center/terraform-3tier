@@ -18,26 +18,61 @@ By the end of this challenge, you will be able to:
 
 ---
 
-## Quick Start
+## How to Follow This Guide
+
+> **Read this first!** This guide is designed to be followed **step by step, in order**. Don't skip ahead.
+
+| Step | What You'll Do | Time |
+|------|---------------|------|
+| **Step 0** | Install tools (Terraform, Docker, AWS CLI) | 10-15 min |
+| **Step 1** | Learn the architecture (reading only) | 15-20 min |
+| **Step 2** | Set up LocalStack (local AWS simulator) | 5 min |
+| **Steps 3-8** | Write Terraform code (the actual challenge) | 1-2 hours |
+| **(Optional)** | Deploy to real AWS | 30 min |
+
+**After each coding step (Steps 3-8), always run:**
+```bash
+terraform validate     # Check for syntax errors
+python run.py          # Check your score (should increase after each step)
+```
+
+**Your progress:**
+- Start: `python run.py` shows **0/100**
+- After Step 3 (VPC): ~25/100
+- After Step 4 (Security): ~35/100
+- After Step 5 (ALB): ~55/100
+- After Step 6 (EC2): ~80/100
+- After Step 7 (RDS): ~95/100
+- After Step 8 (Variables): **100/100**
+
+---
+
+## Quick Start (for experienced users)
+
+> Skip this if you're new to Terraform. Go to [Step 0: Prerequisites](#step-0-prerequisites) instead.
 
 ```bash
-# 1. Fork and clone this repo
+# 1. Clone the repo
+git clone https://github.com/techlearn-center/terraform-3tier.git
+cd terraform-3tier
 
-# 2. Install Terraform (see Step 0)
-
-# 3. Choose your approach:
-#    - EC2 (traditional) - simpler, start here
-#    - ECS (containerized) - modern, learn containers
-
-# 4. Complete the .tf files
-
-# 5. Test locally with LocalStack
+# 2. Start LocalStack and configure
 docker-compose up -d
-terraform init
-terraform apply
+cp provider_override.tf.example provider_override.tf
+aws configure  # Use: test / test / us-east-1 / json
 
-# 6. Push and check your score!
-git push origin main
+# 3. Initialize and check starting score
+terraform init
+python run.py  # Should show 0/100
+
+# 4. Complete the .tf files (uncomment code, fill in TODOs)
+
+# 5. Validate and apply
+terraform validate
+terraform apply  # ALB/RDS will fail on LocalStack Community — that's expected
+
+# 6. Check final score
+python run.py  # Should show 100/100
 ```
 
 ---
@@ -423,6 +458,23 @@ Let's trace a real request step by step:
 ---
 
 ## Step 0: Prerequisites
+
+### Clone the Repository
+
+First, get the code on your machine:
+
+```bash
+# Clone the repo
+git clone https://github.com/techlearn-center/terraform-3tier.git
+
+# Enter the directory
+cd terraform-3tier
+
+# Verify you're in the right place (you should see .tf files)
+ls *.tf
+```
+
+You should see files like `main.tf`, `vpc.tf`, `alb.tf`, etc.
 
 ### How Terraform Works
 
